@@ -27,6 +27,7 @@ function saveImages(images) {
   fs.writeFileSync(DATA_FILE, JSON.stringify(images, null, 2));
 }
  
+// 이미지 업로드 감지
 client.on('messageCreate', (message) => {
   if (message.channel.id !== CHANNEL_ID) return;
   if (message.attachments.size === 0) return;
@@ -56,6 +57,36 @@ client.on('messageCreate', (message) => {
   console.log('이미지 저장됨:', images.length + '장');
 });
  
+// 메시지 삭제 감지 — 해당 메시지 이미지 제거
+client.on('messageDelete', (message) => {
+  if (message.channel.id !== CHANNEL_ID) return;
+ 
+  var images   = loadImages();
+  var filtered = images.filter(function(img) {
+    return img.messageId !== message.id;
+  });
+ 
+  if (filtered.length !== images.length) {
+    saveImages(filtered);
+    console.log('이미지 삭제됨 (messageId:', message.id + '), 남은 이미지:', filtered.length + '장');
+  }
+});
+ 
+// 여러 메시지 한번에 삭제 감지
+client.on('messageDeleteBulk', (messages) => {
+  var images = loadImages();
+  var ids    = messages.map(function(m) { return m.id; });
+ 
+  var filtered = images.filter(function(img) {
+    return !ids.includes(img.messageId);
+  });
+ 
+  if (filtered.length !== images.length) {
+    saveImages(filtered);
+    console.log('다중 이미지 삭제됨, 남은 이미지:', filtered.length + '장');
+  }
+});
+ 
 client.once('ready', () => {
   console.log('AoyamaBot 온라인:', client.user.tag);
 });
@@ -71,8 +102,8 @@ app.get('/images', (req, res) => {
 });
  
 app.get('/images/first', (req, res) => {
-  var all     = loadImages();
-  var seen    = {};
+  var all      = loadImages();
+  var seen     = {};
   var filtered = all.filter(function(img) {
     if (seen[img.messageId]) return false;
     seen[img.messageId] = true;
